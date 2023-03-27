@@ -103,7 +103,7 @@ Paraphraser_t.to(DEVICE)
 
 
 # student models
-Student = ResNet20()
+Student = ResNet18()
 Translator_s = Translator(64, int(round(64*RATE)))
 Student.to(DEVICE)
 Translator_s.to(DEVICE)

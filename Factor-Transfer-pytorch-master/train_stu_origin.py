@@ -86,7 +86,7 @@ base_lr = args.lr
 
 # Model
 # model = ResNet56()
-model = ResNet20()
+model = ResNet18()
 
 
 

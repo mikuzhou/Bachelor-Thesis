@@ -143,7 +143,7 @@ class ResNet_simple(nn.Module):
         return attention_map
 
 def ResNet18():
-    return ResNet(BasicBlock, [2,2,2,2])
+    return ResNet_simple(BasicBlock, [1,1,1])
 
 def ResNet20():
     return ResNet_simple(BasicBlock, [3,3,3])
