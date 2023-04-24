@@ -22,7 +22,7 @@ from Models import *
 
 parser = argparse.ArgumentParser(description='Quantization finetuning for CIFAR100')
 parser.add_argument('--text', default='log.txt', type=str)
-parser.add_argument('--exp_name', default='cifar10/Paraphraser', type=str)
+parser.add_argument('--exp_name', default='cifar10/Paraphraser_l0', type=str)
 parser.add_argument('--log_time', default='1', type=str)
 parser.add_argument('--lr', default='0.1', type=float)
 parser.add_argument('--resume_epoch', default='0', type=int)
@@ -51,7 +51,7 @@ torch.manual_seed(num)
 #####################
 
 
-# os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
+os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
 
 #Data loader
 transform_train = transforms.Compose([
@@ -73,7 +73,8 @@ testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True
 testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=4)
 
 #Other parameters
-DEVICE = torch.device("cpu")
+# DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda")
 RESUME_EPOCH = args.resume_epoch
 DECAY_EPOCH = args.decay_epoch
 DECAY_EPOCH = [ep - RESUME_EPOCH for ep in DECAY_EPOCH]
@@ -88,12 +89,13 @@ model = ResNet56()
 # Load the teacher network
 if len(args.load_pretrained) > 2 :
     path = args.load_pretrained
-    state = torch.load(path, map_location=torch.device('cpu'))
+    # state = torch.load(path, map_location=torch.device('cpu'))
+    state = torch.load(path)
     utils.load_checkpoint(model, state)
 
 
 # According to CIFAR
-Paraphraser_t = Paraphraser(64, int(round(64*RATE)))
+Paraphraser_t = Paraphraser(16, int(round(16*RATE)))
 model.to(DEVICE)
 Paraphraser_t.to(DEVICE)
 
@@ -123,8 +125,10 @@ def train(model,module, epoch):
 
         outputs= model(inputs)
         # reconstructed feature maps (Mode 0; see FeatureProjection.py)
-        output_p= module(outputs[2],0)
-        loss = criterion(output_p, outputs[2].detach())
+        # output_p0= module(outputs[0],0)
+        # output_p1= module(outputs[1],0)
+        output_p= module(outputs[0],0)
+        loss = criterion(output_p, outputs[0].detach())
 
         ###################################################################################
 

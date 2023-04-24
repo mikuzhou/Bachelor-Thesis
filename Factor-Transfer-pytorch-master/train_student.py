@@ -31,7 +31,9 @@ parser.add_argument('--w_decay', default='5e-4', type=float)
 parser.add_argument('--cu_num', default='0', type=str)
 parser.add_argument('--seed', default='1', type=str)
 parser.add_argument('--load_pretrained_teacher', default='trained/Teacher.pth', type=str)
-parser.add_argument('--load_pretrained_paraphraser', default='trained/Paraphraser.pth', type=str)
+parser.add_argument('--load_pretrained_paraphraser_l0', default='trained/Paraphraser_l0.pth', type=str)
+parser.add_argument('--load_pretrained_paraphraser_l1', default='trained/Paraphraser_l1.pth', type=str)
+parser.add_argument('--load_pretrained_paraphraser_l2', default='trained/Paraphraser_l2.pth', type=str)
 parser.add_argument('--save_model', default='ckpt.t7', type=str)
 parser.add_argument('--rate', type=float, default=0.5, help='The paraphrase rate k')
 parser.add_argument('--beta', type=int, default=500)
@@ -84,7 +86,7 @@ W_DECAY = args.w_decay
 base_lr = args.lr
 RATE = args.rate
 BETA = args.beta
-map_location = torch.device("cpu")
+# map_location = torch.device("cpu")
 
 # Load pretrained models
 Teacher = ResNet56()
@@ -94,19 +96,36 @@ state = torch.load(path)
 utils.load_checkpoint(Teacher, state)
 Teacher.to(DEVICE)
 
-Paraphraser_t = Paraphraser(64, int(round(64*RATE)))
-path = args.load_pretrained_paraphraser
+Paraphraser_t2 = Paraphraser(64, int(round(64 * RATE)))
+path = args.load_pretrained_paraphraser_l2
 state = torch.load(path)
 # state = torch.load(path, map_location=map_location)
-utils.load_checkpoint(Paraphraser_t, state)
-Paraphraser_t.to(DEVICE)
+utils.load_checkpoint(Paraphraser_t2, state)
+Paraphraser_t2.to(DEVICE)
 
+Paraphraser_t1 = Paraphraser(32, int(round(32 * RATE)))
+path = args.load_pretrained_paraphraser_l1
+state = torch.load(path)
+# state = torch.load(path, map_location=map_location)
+utils.load_checkpoint(Paraphraser_t1, state)
+Paraphraser_t1.to(DEVICE)
+
+Paraphraser_t0 = Paraphraser(16, int(round(16 * RATE)))
+path = args.load_pretrained_paraphraser_l0
+state = torch.load(path)
+# state = torch.load(path, map_location=map_location)
+utils.load_checkpoint(Paraphraser_t0, state)
+Paraphraser_t0.to(DEVICE)
 
 # student models
 Student = ResNet18()
-Translator_s = Translator(64, int(round(64*RATE)))
+Translator_s2 = Translator(64, int(round(64 * RATE)))
 Student.to(DEVICE)
-Translator_s.to(DEVICE)
+Translator_s2.to(DEVICE)
+Translator_s1 = Translator(32, int(round(32 * RATE)))
+Translator_s0 = Translator(16, int(round(16 * RATE)))
+Translator_s1.to(DEVICE)
+Translator_s0.to(DEVICE)
 
 # Loss and Optimizer
 criterion_CE = nn.CrossEntropyLoss()
@@ -114,7 +133,7 @@ criterion = nn.L1Loss()
 
 optimizer = optim.SGD(Student.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=DECAY_EPOCH, gamma=0.1)
-optimizer_module = optim.SGD(Translator_s.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
+optimizer_module = optim.SGD(Translator_s2.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
 scheduler_module = optim.lr_scheduler.MultiStepLR(optimizer_module, milestones=DECAY_EPOCH, gamma=0.1)
 
 
@@ -150,14 +169,18 @@ def eval(net):
     print('Loss: %.3f | Acc net: %.3f%%' % (train_loss / (b_idx + 1), 100. * correct / total))
     return val_loss / (b_idx + 1),  correct / total
 
-def train(teacher,module_t,student,module_s, epoch):
+def train(teacher,module_t0,module_t1,module_t2,student,module_s0,module_s1,module_s2, epoch):
     epoch_start_time = time.time()
     print('\n EPOCH: %d' % epoch)
 
     teacher.eval()
-    module_t.eval()
+    module_t0.eval()
+    module_t1.eval()
+    module_t2.eval()
     student.train()
-    module_s.train()
+    module_s0.train()
+    module_s1.train()
+    module_s2.train()
 
     train_loss = 0
     correct = 0
@@ -176,10 +199,18 @@ def train(teacher,module_t,student,module_s, epoch):
         teacher_outputs= teacher(inputs)
         student_outputs = student(inputs)
 
-        factor_t = module_t(teacher_outputs[2],1);
-        factor_s = module_s(student_outputs[2]);
+        factor_t2 = module_t2(teacher_outputs[2],1);
+        factor_s2 = module_s2(student_outputs[2]);
 
-        loss = BETA * (criterion(utils.FT(factor_s), utils.FT(factor_t.detach()))) \
+        factor_t1 = module_t1(teacher_outputs[1],1);
+        factor_s1 = module_s1(student_outputs[1]);
+
+        factor_t0 = module_t0(teacher_outputs[0],1);
+        factor_s0 = module_s0(student_outputs[0]);
+
+        loss = BETA /3 * (criterion(utils.FT(factor_s2), utils.FT(factor_t2.detach()))) \
+               + BETA / 3 * (criterion(utils.FT(factor_s1), utils.FT(factor_t1.detach()))) \
+               + BETA / 3 * (criterion(utils.FT(factor_s0), utils.FT(factor_t0.detach()))) \
                + criterion_CE(student_outputs[3], targets)
         ###################################################################################
         loss.backward()
@@ -224,7 +255,8 @@ if __name__ == '__main__':
         f = open(os.path.join("logs/" + path, 'log.txt'), "a")
 
         ### Train ###
-        train_loss, acc = train(Teacher,Paraphraser_t,Student,Translator_s, epoch)
+        train_loss, acc = train(Teacher, Paraphraser_t0,Paraphraser_t1,Paraphraser_t2,\
+                                Student, Translator_s0,Translator_s1,Translator_s2, epoch)
         scheduler.step()
         scheduler_module.step()
 
@@ -245,7 +277,7 @@ if __name__ == '__main__':
 
     utils.save_checkpoint({
         'epoch': epoch,
-        'state_dict': Translator_s.state_dict(),
+        'state_dict': Translator_s2.state_dict(),
         'optimizer': optimizer_module.state_dict(),
     }, True, 'ckpt/' + path, filename='Translator_{}.pth'.format(epoch))
 
