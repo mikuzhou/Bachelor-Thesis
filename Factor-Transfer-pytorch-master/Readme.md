@@ -1,4 +1,4 @@
-# Paraphrasing Complex Network: Network Compression via Factor Transfer (NeurIPS 2018)
+# Paraphrasing Complex Network: Network Compression via Factor Transfer
 
 
 ## Requirements
@@ -18,6 +18,6 @@ python train_student.py  --cu_num 0
 ## Citation
 Please refer to the following citation if this work is useful for your research.
 
-### Bibtex:
+
 
 
