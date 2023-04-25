@@ -51,7 +51,7 @@ torch.manual_seed(num)
 #####################
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
+# os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
 
 #Data loader
 transform_train = transforms.Compose([
@@ -74,7 +74,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 #Other parameters
 # DEVICE = torch.device("cpu")
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("mps")
 RESUME_EPOCH = args.resume_epoch
 DECAY_EPOCH = args.decay_epoch
 DECAY_EPOCH = [ep - RESUME_EPOCH for ep in DECAY_EPOCH]
@@ -89,8 +89,8 @@ model = ResNet56()
 # Load the teacher network
 if len(args.load_pretrained) > 2 :
     path = args.load_pretrained
-    # state = torch.load(path, map_location=torch.device('cpu'))
-    state = torch.load(path)
+    state = torch.load(path, map_location=torch.device('cpu'))
+    # state = torch.load(path)
     utils.load_checkpoint(model, state)
 
 

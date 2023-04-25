@@ -53,7 +53,7 @@ torch.manual_seed(num)
 #####################
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
+# os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
 
 #Data loader
 transform_train = transforms.Compose([
@@ -76,7 +76,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 #Other parameters
 # DEVICE = torch.device("cpu")
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("mps")
 RESUME_EPOCH = args.resume_epoch
 DECAY_EPOCH = args.decay_epoch
 DECAY_EPOCH = [ep - RESUME_EPOCH for ep in DECAY_EPOCH]
@@ -86,34 +86,34 @@ W_DECAY = args.w_decay
 base_lr = args.lr
 RATE = args.rate
 BETA = args.beta
-# map_location = torch.device("cpu")
+map_location = torch.device("cpu")
 
 # Load pretrained models
 Teacher = ResNet56()
 path = args.load_pretrained_teacher
-state = torch.load(path)
-# state = torch.load(path, map_location=map_location)
+# state = torch.load(path)
+state = torch.load(path, map_location=map_location)
 utils.load_checkpoint(Teacher, state)
 Teacher.to(DEVICE)
 
 Paraphraser_t2 = Paraphraser(64, int(round(64 * RATE)))
 path = args.load_pretrained_paraphraser_l2
-state = torch.load(path)
-# state = torch.load(path, map_location=map_location)
+# state = torch.load(path)
+state = torch.load(path, map_location=map_location)
 utils.load_checkpoint(Paraphraser_t2, state)
 Paraphraser_t2.to(DEVICE)
 
-Paraphraser_t1 = Paraphraser(32, int(round(32 * RATE)))
+Paraphraser_t1 = Paraphraser(32, int(round(64 * RATE)))
 path = args.load_pretrained_paraphraser_l1
-state = torch.load(path)
-# state = torch.load(path, map_location=map_location)
+# state = torch.load(path)
+state = torch.load(path, map_location=map_location)
 utils.load_checkpoint(Paraphraser_t1, state)
 Paraphraser_t1.to(DEVICE)
 
-Paraphraser_t0 = Paraphraser(16, int(round(16 * RATE)))
+Paraphraser_t0 = Paraphraser(16, int(round(64 * RATE)))
 path = args.load_pretrained_paraphraser_l0
-state = torch.load(path)
-# state = torch.load(path, map_location=map_location)
+# state = torch.load(path)
+state = torch.load(path, map_location=map_location)
 utils.load_checkpoint(Paraphraser_t0, state)
 Paraphraser_t0.to(DEVICE)
 
@@ -122,8 +122,8 @@ Student = ResNet18()
 Translator_s2 = Translator(64, int(round(64 * RATE)))
 Student.to(DEVICE)
 Translator_s2.to(DEVICE)
-Translator_s1 = Translator(32, int(round(32 * RATE)))
-Translator_s0 = Translator(16, int(round(16 * RATE)))
+Translator_s1 = Translator(32, int(round(64 * RATE)))
+Translator_s0 = Translator(16, int(round(64 * RATE)))
 Translator_s1.to(DEVICE)
 Translator_s0.to(DEVICE)
 

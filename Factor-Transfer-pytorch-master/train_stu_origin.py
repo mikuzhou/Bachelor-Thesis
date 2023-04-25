@@ -49,7 +49,7 @@ torch.manual_seed(num)
 #####################
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
+# os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
 
 
 #Data loader
@@ -74,8 +74,8 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 
 #Other parameters
-# DEVICE = torch.device("cpu")
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("mps")
+# DEVICE = torch.device("cuda")
 RESUME_EPOCH = args.resume_epoch
 DECAY_EPOCH = args.decay_epoch
 DECAY_EPOCH = [ep - RESUME_EPOCH for ep in DECAY_EPOCH]

@@ -23,6 +23,7 @@ from Models import *
 parser = argparse.ArgumentParser(description='Quantization finetuning for CIFAR100')
 parser.add_argument('--text', default='log.txt', type=str)
 parser.add_argument('--exp_name', default='cifar10/Paraphraser_l1', type=str)
+parser.add_argument('--save_name', default='trained', type=str)
 parser.add_argument('--log_time', default='1', type=str)
 parser.add_argument('--lr', default='0.1', type=float)
 parser.add_argument('--resume_epoch', default='0', type=int)
@@ -51,7 +52,7 @@ torch.manual_seed(num)
 #####################
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.cu_num
+# os.environ['MPS_VISIBLE_DEVICES'] = args.cu_num
 
 #Data loader
 transform_train = transforms.Compose([
@@ -74,7 +75,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 #Other parameters
 # DEVICE = torch.device("cpu")
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("mps")
 RESUME_EPOCH = args.resume_epoch
 DECAY_EPOCH = args.decay_epoch
 DECAY_EPOCH = [ep - RESUME_EPOCH for ep in DECAY_EPOCH]
@@ -89,13 +90,13 @@ model = ResNet56()
 # Load the teacher network
 if len(args.load_pretrained) > 2 :
     path = args.load_pretrained
-    # state = torch.load(path, map_location=torch.device('cpu'))
-    state = torch.load(path)
+    state = torch.load(path, map_location=torch.device('cpu'))
+    # state = torch.load(path)
     utils.load_checkpoint(model, state)
 
 
 # According to CIFAR
-Paraphraser_t = Paraphraser(32, int(round(32*RATE)))
+Paraphraser_t = Paraphraser(32, int(round(64*RATE)))
 model.to(DEVICE)
 Paraphraser_t.to(DEVICE)
 
