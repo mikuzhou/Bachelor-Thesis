@@ -133,10 +133,12 @@ criterion = nn.L1Loss()
 
 optimizer = optim.SGD(Student.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=DECAY_EPOCH, gamma=0.1)
-optimizer_module = optim.SGD(Translator_s2.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
-scheduler_module = optim.lr_scheduler.MultiStepLR(optimizer_module, milestones=DECAY_EPOCH, gamma=0.1)
-
-
+optimizer_module2 = optim.SGD(Translator_s2.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
+scheduler_module2 = optim.lr_scheduler.MultiStepLR(optimizer_module2, milestones=DECAY_EPOCH, gamma=0.1)
+optimizer_module1 = optim.SGD(Translator_s1.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
+scheduler_module1 = optim.lr_scheduler.MultiStepLR(optimizer_module1, milestones=DECAY_EPOCH, gamma=0.1)
+optimizer_module0 = optim.SGD(Translator_s0.parameters(), lr=base_lr, momentum=0.9, weight_decay=W_DECAY)
+scheduler_module0 = optim.lr_scheduler.MultiStepLR(optimizer_module0, milestones=DECAY_EPOCH, gamma=0.1)
 def eval(net):
     loader = testloader
     flag = 'Test'
@@ -187,12 +189,16 @@ def train(teacher,module_t0,module_t1,module_t2,student,module_s0,module_s1,modu
     total = 0
 
     global optimizer
-    global optimizer_module
+    global optimizer_module2
+    global optimizer_module1
+    global optimizer_module0
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
         optimizer.zero_grad()
-        optimizer_module.zero_grad()
+        optimizer_module2.zero_grad()
+        optimizer_module1.zero_grad()
+        optimizer_module0.zero_grad()
 
         # Knowledge transfer with FT loss at the last layer
         ###################################################################################
@@ -208,14 +214,16 @@ def train(teacher,module_t0,module_t1,module_t2,student,module_s0,module_s1,modu
         factor_t0 = module_t0(teacher_outputs[0],1);
         factor_s0 = module_s0(student_outputs[0]);
 
-        loss = BETA /3 * (criterion(utils.FT(factor_s2), utils.FT(factor_t2.detach()))) \
-               + BETA / 3 * (criterion(utils.FT(factor_s1), utils.FT(factor_t1.detach()))) \
-               + BETA / 3 * (criterion(utils.FT(factor_s0), utils.FT(factor_t0.detach()))) \
+        loss = BETA * 4 / 5 * (criterion(utils.FT(factor_s2), utils.FT(factor_t2.detach()))) \
+               + BETA / 10 * (criterion(utils.FT(factor_s1), utils.FT(factor_t1.detach()))) \
+               + BETA / 10 * (criterion(utils.FT(factor_s0), utils.FT(factor_t0.detach()))) \
                + criterion_CE(student_outputs[3], targets)
         ###################################################################################
         loss.backward()
         optimizer.step()
-        optimizer_module.step()
+        optimizer_module2.step()
+        optimizer_module1.step()
+        optimizer_module0.step()
 
         train_loss += loss.item()
 
@@ -258,7 +266,9 @@ if __name__ == '__main__':
         train_loss, acc = train(Teacher, Paraphraser_t0,Paraphraser_t1,Paraphraser_t2,\
                                 Student, Translator_s0,Translator_s1,Translator_s2, epoch)
         scheduler.step()
-        scheduler_module.step()
+        scheduler_module2.step()
+        scheduler_module1.step()
+        scheduler_module0.step()
 
         ### Evaluate  ###
         val_loss, test_acc  = eval(Student)
@@ -278,6 +288,8 @@ if __name__ == '__main__':
     utils.save_checkpoint({
         'epoch': epoch,
         'state_dict': Translator_s2.state_dict(),
-        'optimizer': optimizer_module.state_dict(),
+        'optimizer0': optimizer_module0.state_dict(),
+        'optimizer1': optimizer_module1.state_dict(),
+        'optimizer2': optimizer_module2.state_dict(),
     }, True, 'ckpt/' + path, filename='Translator_{}.pth'.format(epoch))
 
