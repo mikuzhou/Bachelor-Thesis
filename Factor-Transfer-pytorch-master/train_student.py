@@ -37,6 +37,8 @@ parser.add_argument('--load_pretrained_paraphraser_l2', default='trained/Paraphr
 parser.add_argument('--save_model', default='ckpt.t7', type=str)
 parser.add_argument('--rate', type=float, default=0.5, help='The paraphrase rate k')
 parser.add_argument('--beta', type=int, default=500)
+parser.add_argument('--temp', type=float, default=5.0)
+parser.add_argument('--alpha', type=float, default=7.0)
 
 
 torch.backends.cudnn.deterministic = True
@@ -86,6 +88,8 @@ W_DECAY = args.w_decay
 base_lr = args.lr
 RATE = args.rate
 BETA = args.beta
+ALPHA = args.alpha
+TEMP = args.temp
 map_location = torch.device("cpu")
 
 # Load pretrained models
@@ -217,7 +221,10 @@ def train(teacher,module_t0,module_t1,module_t2,student,module_s0,module_s1,modu
         loss = BETA * 4 / 5 * (criterion(utils.FT(factor_s2), utils.FT(factor_t2.detach()))) \
                + BETA / 10 * (criterion(utils.FT(factor_s1), utils.FT(factor_t1.detach()))) \
                + BETA / 10 * (criterion(utils.FT(factor_s0), utils.FT(factor_t0.detach()))) \
-               + criterion_CE(student_outputs[3], targets)
+               - criterion_CE(student_outputs[3], targets) * (1-ALPHA)\
+               - nn.KLDivLoss()(nn.functional.log_softmax(student_outputs[3] / TEMP, dim=1),
+                                nn.functional.softmax(teacher_outputs[3] / TEMP
+                                                      , dim=1)) * ALPHA
         ###################################################################################
         loss.backward()
         optimizer.step()
